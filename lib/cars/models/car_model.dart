@@ -24,7 +24,9 @@ class CarsModel {
   factory CarsModel.fromMapToCarObject(Map<String, dynamic> json) {
     return CarsModel(
       id: json['id'] as int,
-      year: json['year'] as int,
+      year: json['year'] is String
+          ? int.tryParse(json['year'] as String) ?? 0
+          : (json['year'] as int? ?? 0),
       make: json['make'] as String? ?? '',
       model: json['model'] as String? ?? '',
       type: json['type'] as String? ?? '',

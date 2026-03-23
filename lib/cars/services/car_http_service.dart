@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/car_model.dart';
@@ -59,14 +60,45 @@ class CarHttpService {
     final offset = (page - 1) * limit;
     final uri = _buildUri('/v1/cars', {'limit': '$limit', 'offset': '$offset'});
 
-    final response = await http
-        .get(uri, headers: _headers)
-        .timeout(const Duration(seconds: 10));
+    try {
+      final response = await http
+          .get(uri, headers: _headers)
+          .timeout(const Duration(seconds: 10));
 
-    if (response.statusCode == 200) {
-      return CarsModel.listFromJsonString(response.body);
-    } else {
-      throw Exception('Error ${response.statusCode}: ${response.body}');
+      if (response.statusCode == 200) {
+        return CarsModel.listFromJsonString(response.body);
+      } else {
+        throw Exception('Error ${response.statusCode}: ${response.body}');
+      }
+    } on TimeoutException {
+      throw Exception('Han pasado mas de 10s');
+    } catch (e) {
+      throw Exception('Error de red: $e');
+    }
+  }
+
+
+  Future<List<CarsModel>> getCarsByFilter({String? make, String? model}) async {
+    final queryParams = <String, String>{};
+    if (make != null && make.isNotEmpty) queryParams['make'] = make;
+    if (model != null && model.isNotEmpty) queryParams['model'] = model;
+
+    final uri = _buildUri('/v1/cars/search', queryParams);
+
+    try {
+      final response = await http
+          .get(uri, headers: _headers)
+          .timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        return CarsModel.listFromJsonString(response.body);
+      } else {
+        throw Exception('Error ${response.statusCode}: ${response.body}');
+      }
+    } on TimeoutException {
+      throw Exception('Han pasado mas de 10s');
+    } catch (e) {
+      throw Exception('Error de red: $e');
     }
   }
 }

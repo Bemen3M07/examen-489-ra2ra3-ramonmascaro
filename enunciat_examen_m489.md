@@ -4,11 +4,11 @@
 
 **Unitats Formatives:** RA2 i RA3  
 **Curs:** 2n DAM · Videojocs  
-**Data:** ____________________  
+**Data:** ____23/03/2026____  
 **Durada:** 2 hores  
 
-**Alumne/a:** ________________________________________________  
-**Grup:** __________________________________________________  
+**Alumne/a:** _____Ramon Mascaró___________________  
+**Grup:** ___________2n DAM__________________________________  
 
 ---
 
@@ -42,7 +42,17 @@ Al projecte **Cars**, el widget `CarsPage` gestiona el número de pàgina actual
 **Resposta:**
 
 ```
-[Escriu la teva resposta aquí]
+Funcion setstate:
+
+es el mecanismo que tiene flutter para avisar al FW de que el estado de un widget stateful ha canviado y se tiene que redibujar la UI.
+Cunado se llama a setState el widget se marca como sucio y se re ejecuta el build para reconstruir eñ widget con los nuevos valores del estado.
+
+Motivo dos llamadas a setState:
+
+La primera llamada al inicio hace que la UI reconstruya el estado al instante mostrando el indicador de carga minetras espera la respuesta de la API, si no se llamara al inicio el usuario no tendria la sensacion de carga.
+
+La segunda llamada se hace al final para actualizar _cas y pone isLoading = false una vez han llegado los datos, asi la UI se reconstruye con los datos (osea, lista de coches) que han llegado de la API (o el error si hay) y se deja de mostrar la animacion de carga. 
+
 ```
 
 ---
@@ -56,7 +66,22 @@ Al projecte **Camera**, el widget `CameraScreen` utilitza un `CameraController` 
 **Resposta:**
 
 ```
-[Escriu la teva resposta aquí]
+El metodo del ciclo de vida de state que se usa dispose() que pertenece a la clase State.
+
+
+El mètode del cicle de vida que s'usa per alliberar el CameraController és
+dispose(), que pertany a la classe State.
+
+Se haria asi:
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+Es necesario llamarlo porque el cameraController gesiona recursos del OS como la camara o la memoria, si no se usa el cameraController una vez se cierre la camara quedará ocupada en segundo plano y no se podra usar por otras apps o otras funciones de la propia app ademas de ocupar una memoria innecesaria. Si se usa el _controller.dispose() se mata el proceso al acabar de usar el widget que usa la camara y entonces queda libre.
+
 ```
 
 ---
@@ -70,7 +95,19 @@ Al projecte **Camera**, el widget `CameraScreen` utilitza un `CameraController` 
 **Resposta:**
 
 ```
-[Escriu la teva resposta aquí]
+- Per quin motiu no es pot fer `await` directament a `initState()`?
+
+No se puede usar el await directamente porque initState es un metodo sincrono que tiene que devolver un void instantaneamente para despues llamar al build y pintar el primer estado del widget. Si se pusiera un await sera como convertirlo en un metodo asincrono y no se sabria cuando se ha acabado de iniciar el widget para pintarlo.
+
+
+- Quina millora aporta a l'usuari usar `FutureBuilder` en lloc de bloquejar el fil?
+
+Usar el FutureBuilder permite que la UI no se quede congelada mientras se espera que el future se complete, asi el usuario ve una animacion de carga mientras se inicia en segundo plano el proceso hasta que ya esta preparado. 
+
+- Com treballen junts `_initializeControllerFuture` i `FutureBuilder`?
+
+En el initState se guarda el future que devuelve el _controller.initialize() en _initializeControllerFuture, y en build() se pasa ese future al FutureBuilder. Entonces el FutureBuilder sobrescribe al Future y reconstruye el widget cada vez que cambia el estado del Future. 
+
 ```
 
 ---
@@ -88,9 +125,28 @@ Què passaria si el servidor de l'API trigués 60 segons a respondre? L'aplicaci
 ```dart
 // Escriu la modificació al getCarsPage aquí:
 Future<List<CarsModel>> getCarsPage(int page, int limit) async {
-  // ...
+  final offset = (page - 1) * limitt;
+  final uri = _buildUri('/v1/cars', {'limit': '$limit', 'offset': '$offset'});
+
+  try {
+    final response = await http
+        .get(uri, headers: _headers)
+        .timeout(const Duration(seconds: 10));
+
+    if (response.statusCode == 200) {
+      return CarsModel.listFromJsonString(response.body);
+    } else {
+      throw Exception('Error');
+    }
+  } on TimeoutException {
+    throw Exception('La peticion ha suprrado los 10s');
+  } catch (e) {
+    throw Exception('Error');
+  }
 }
 ```
+Si el server tardara 60 segundos en responder la peticion se quedaria congelada hasta que el server respondiera. La app no deberia quedarse bloqueada porque al ser una funcion asincronia se quedaria mostrando la animacion de carga hasta que le llegara una respuesta.
+La app se quedaría indefinidamente en carga hasta una respuesta lo que daria la sensacion de que la app se ha quedado bloqueada.
 
 ---
 
@@ -103,7 +159,15 @@ Analitza el constructor `factory CarsModel.fromMapToCarObject(Map<String, dynami
 **Resposta:**
 
 ```
-[Escriu la teva resposta aquí]
+Si la api devolviera por ejemplo yerar como string una solucion seria hacer primero un filtrado para saber si la respuesta es string o no y asignarle valor 0 en caso de que si lo sea. Y si ya es un init se comprueba que no sea nulo en cuyo caso tambien se le asignaria 0.
+
+Algo asi:
+
+  year: json['year'] is String
+      ? int.tryParse(json['year'] as String) ?? 0
+      : (json['year'] as int? ?? 0),
+
+
 ```
 
 ---
@@ -113,7 +177,14 @@ Analitza el constructor `factory CarsModel.fromMapToCarObject(Map<String, dynami
 **Resposta:**
 
 ```
-[Escriu la teva resposta aquí]
+Los motivos principales son los siguientes
+
+El primero es para aislar de dependencias externas, es decir, si se queire provar un codigo en concreto se usa un json a mano para no depender de que la api o algo externo pueda dar un error.
+
+Tambien un motivo puede ser que al tener el json a mano se puede recrear la ejecucion exactamente igual mas de una vez para comprobar donde puede haber un error.
+
+Además el hecho de no depender de una API tambien hace que la velocidad del test sea mas rapida y no dependa de la red o la propia API.
+
 ```
 
 ---
@@ -135,15 +206,82 @@ Imagina que volem crear una pantalla de detall per a cada cotxe del projecte Car
 // Escriu el teu codi aquí:
 
 class CarDetailPage extends StatelessWidget {
-  final CarsModel car;
+    final CarsModel car;
 
-  const CarDetailPage({super.key, required this.car});
+    const CarDetailPage({super.key, required this.car});
 
-  @override
-  Widget build(BuildContext context) {
-    // implementa aquí
+    @override
+    Widget build(BuildContext context) {
+      return Scaffold(
+        appBar: AppBar(title: Text('${car.make} ${car.model}')),
+        body: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '${car.make} ${car.model}',
+                style: const TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Icon(
+                car.type == 'SUV' ? Icons.directions_car : Icons.car_rental,
+                size: 64,
+              ),
+              const SizedBox(height: 8),
+              Text('Tipo: ${car.type}'),
+              Text('Año: ${car.year}'),
+              Text('Color: ${car.color}'),
+              Text('Ciudad: ${car.city}'),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Cohce seleccionado: ${car.make} ${car.model}'),
+                    ),
+                  );
+                },
+                child: const Text('Seleccionar coche'),
+              ),
+              const SizedBox(height: 32),
+              const Text(
+                'Otros coches:',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              Expanded(
+                child: FutureBuilder<List<CarsModel>>(
+                  future: CarHttpService().getCarsPage(1, 5),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    if (snapshot.hasError) {
+                      return Text(
+                        'Error: ${snapshot.error}',
+                        style: const TextStyle(color: Colors.red),
+                      );
+                    }
+                    final cars = snapshot.data!;
+                    return ListView.builder(
+                      itemCount: cars.length,
+                      itemBuilder: (context, index) {
+                        return ListTile(title: Text(cars[index].make));
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
   }
-}
 ```
 
 ---
@@ -152,6 +290,29 @@ class CarDetailPage extends StatelessWidget {
 
 ```dart
 //Escriu la teva ampliació aquí:
+Esa funcion ya esta integrada en la clase pero corresponde a esta parte concretamente:
+
+child: FutureBuilder<List<CarsModel>>(
+  future: CarHttpService().getCarsPage(1, 5),
+  builder: (context, snapshot) {
+    if (snapshot.connectionState == ConnectionState.waiting) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (snapshot.hasError) {
+      return Text(
+        'Error: ${snapshot.error}',
+        style: const TextStyle(color: Colors.red),
+      );
+    }
+    final cars = snapshot.data!;
+    return ListView.builder(
+      itemCount: cars.length,
+      itemBuilder: (context, index) {
+        return ListTile(title: Text(cars[index].make));
+      },
+    );
+  },
+),
 ```
 
 ---
@@ -180,6 +341,8 @@ Exemples vàlids:
 
 ```dart
 // Afegeix aquest mètode a car_http_service.dart:
+
+
 ```
 
 Requisits:
@@ -192,7 +355,29 @@ Requisits:
 
 ```dart
 // Escriu aquí la teva implementació completa del mètode:
+  Future<List<CarsModel>> getCarsByFilter({String? make, String? model}) async {
+    final queryParams = <String, String>{};
+    if (make != null && make.isNotEmpty) queryParams['make'] = make;
+    if (model != null && model.isNotEmpty) queryParams['model'] = model;
 
+    final uri = _buildUri('/v1/cars/search', queryParams);
+
+    try {
+      final response = await http
+          .get(uri, headers: _headers)
+          .timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        return CarsModel.listFromJsonString(response.body);
+      } else {
+        throw Exception('Error ${response.statusCode}: ${response.body}');
+      }
+    } on TimeoutException {
+      throw Exception('Han pasado mas de 10s');
+    } catch (e) {
+      throw Exception('Error de red: $e');
+    }
+  }
 ```
 
 ---
